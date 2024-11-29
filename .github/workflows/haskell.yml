@@ -1,0 +1,42 @@
+name: Linter and Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  hlint:
+    name: Scan code with HLint
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - uses: haskell-actions/hlint-scan@c81f3176108e60bbce2d5a223e9297a8406deb92
+  ormolu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            ~/.ghcup
+            ~/.local/bin/ormolu
+          key: ${{ runner.os }}-stack-${{ hashFiles('**/stack.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+
+      - name: Install Ormolu
+        run: |
+          if [ ! -f ~/.local/bin/ormolu ]; then
+            stack install ormolu
+          fi
+
+      - name: Check Ormolu formatting
+        run: |
+          ~/.local/bin/ormolu --mode check $(find . -name '*.hs')
