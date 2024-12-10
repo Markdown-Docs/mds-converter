@@ -1,1 +1,1 @@
-docker run --rm dockerfile
+docker run --rm dockerfile "$@"
