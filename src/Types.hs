@@ -12,6 +12,8 @@ data MDElement
   | Bold Text
   | Italic Text
   | BoldItalic Text
+  | Strikethrough Text
+  | Underlined Text
   | LineBreak
   | HorizontalRule
   | Link Text Text
