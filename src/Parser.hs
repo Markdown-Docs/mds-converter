@@ -14,7 +14,6 @@ parseLines acc (line : lines)
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
   | isHeaderLine line = processBlock (reverse acc) ++ [parseHeader line] ++ parseLines [] lines
   | isHorizontalRule line = processBlock (reverse acc) ++ [HorizontalRule] ++ parseLines [] lines
-  | isCodeBlock line = parseCodeBlock lines
   | otherwise = case parseUnderlineHeader (line : lines) of
       Just (header, rest) -> processBlock (reverse acc) ++ [header] ++ parseLines [] rest
       Nothing -> parseLines (line : acc) lines
@@ -30,8 +29,6 @@ isHorizontalRule line =
   let trimmed = T.strip line
    in T.length trimmed >= 3 && (T.all (== '*') trimmed || T.all (== '-') trimmed)
 
-isCodeBlock :: Text -> Bool
-isCodeBlock line = T.isPrefixOf (T.pack "```") line || T.isPrefixOf (T.pack "    ") line
 
 parseHeader :: Text -> MDElement
 parseHeader line =
@@ -62,10 +59,7 @@ makeHeaderId text =
 
 processBlock :: [Text] -> [MDElement]
 processBlock [] = []
-processBlock lines = [Paragraph (concatMap processLine lines)]
-
-processLines :: Text -> [MDElement]
-processLines text = concatMap processLine $ T.splitOn (T.pack "\n") text
+processBlock lines = [Paragraph (concatMap parseInline lines)]
 
 processLine :: Text -> [MDElement]
 processLine line
@@ -77,23 +71,60 @@ processLine line
         | T.null after -> [PlainText line]
         | otherwise -> [PlainText before, LineBreak] ++ processLine (T.drop 4 after)
 
-parseInline :: Text -> MDElement
+-- Parse inline text with nested decorations
+parseInline :: Text -> [MDElement]
 parseInline text
-  | T.isPrefixOf (T.pack "**") rest && T.isSuffixOf (T.pack "**") content = Bold (T.dropEnd 2 content)
-  | T.isPrefixOf (T.pack "*") rest && T.isSuffixOf (T.pack "*") content = Italic (T.dropEnd 1 content)
-  | otherwise = Paragraph [PlainText text]
-  where
-    rest = T.drop 2 text
-    content = T.drop 2 text
+  | T.null text = []
+  | otherwise =
+      case T.uncons text of
+        Just ('*', _) -> parseDecoration '*' text
+        Just ('_', _) -> parseDecoration '_' text
+        Just ('~', _) -> parseStrikethrough text
+        Just ('<', _) -> parseHtmlTags text
+        _ -> parsePlainText text
 
-parseCodeBlock :: [Text] -> [MDElement]
-parseCodeBlock [] = []
-parseCodeBlock (line : lines)
-  | T.isPrefixOf (T.pack "```") line =
-      let (codeLines, rest) = break (T.isPrefixOf (T.pack "```")) lines
-       in CodeBlock (T.unlines codeLines) : parseLines [] (drop 1 $ skipEmptyLines rest)
-  | T.isPrefixOf (T.pack "    ") line =
-      let (codeLines, rest) = span (T.isPrefixOf (T.pack "    ")) (line : lines)
-          code = T.unlines $ map (T.drop 4) codeLines
-       in CodeBlock code : parseLines [] (skipEmptyLines rest)
-  | otherwise = parseLines [] lines
+-- Handle decorations like *, **, *** or _, __, ___
+parseDecoration :: Char -> Text -> [MDElement]
+parseDecoration char text
+  | T.isPrefixOf (T.pack [char, char, char]) text =
+      let (content, rest) = T.breakOn (T.pack [char, char, char]) (T.drop 3 text)
+       in if T.isPrefixOf (T.pack [char, char, char]) rest
+            then BoldItalic (T.strip content) : parseInline (T.drop 3 rest)
+            else PlainText (T.pack [char, char, char]) : parseInline (T.drop 3 text)
+  | T.isPrefixOf (T.pack [char, char]) text =
+      let (content, rest) = T.breakOn (T.pack [char, char]) (T.drop 2 text)
+       in if T.isPrefixOf (T.pack [char, char]) rest
+            then Bold (T.strip content) : parseInline (T.drop 2 rest)
+            else PlainText (T.pack [char, char]) : parseInline (T.drop 2 text)
+  | T.isPrefixOf (T.pack [char]) text =
+      let (content, rest) = T.breakOn (T.pack [char]) (T.drop 1 text)
+       in if T.isPrefixOf (T.pack [char]) rest
+            then Italic (T.strip content) : parseInline (T.drop 1 rest)
+            else PlainText (T.pack [char]) : parseInline (T.drop 1 text)
+  | otherwise = [PlainText text]
+
+-- Handle ~~strikethrough~~
+parseStrikethrough :: Text -> [MDElement]
+parseStrikethrough text
+  | T.isPrefixOf (T.pack "~~") text =
+      let (content, rest) = T.breakOn (T.pack "~~") (T.drop 2 text)
+       in if T.isPrefixOf (T.pack "~~") rest
+            then Strikethrough (T.strip content) : parseInline (T.drop 2 rest)
+            else PlainText (T.pack "~~") : parseInline (T.drop 2 text)
+  | otherwise = [PlainText text]
+
+-- Parse <u>...</u>
+parseHtmlTags :: Text -> [MDElement]
+parseHtmlTags text
+  | T.isPrefixOf (T.pack "<u>") text =
+      let (content, rest) = T.breakOn (T.pack "</u>") (T.drop 3 text)
+       in if T.isPrefixOf (T.pack "</u>") rest
+            then Underlined (T.strip content) : parseInline (T.drop 4 rest)
+            else PlainText (T.pack "<u>") : parseInline (T.drop 3 text)
+  | otherwise = [PlainText text]
+
+-- Handle plain text until a special character
+parsePlainText :: Text -> [MDElement]
+parsePlainText text =
+  let (content, rest) = T.break (`elem` ['*', '_', '~', '<']) text
+   in PlainText content : parseInline rest

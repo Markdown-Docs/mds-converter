@@ -14,7 +14,6 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 renderElement :: MDElement -> Text
 renderElement element = case element of
   Paragraph elements -> T.concat [T.pack "<p>", T.concat (map renderElement elements), T.pack "</p>\n"]
-  PlainText text -> escapeHtml text
   LineBreak -> T.pack "<br />\n"
   Header level text id ->
     T.concat
@@ -31,6 +30,8 @@ renderElement element = case element of
   Bold text -> T.concat [T.pack "<strong>", escapeHtml text, T.pack "</strong>"]
   Italic text -> T.concat [T.pack "<em>", escapeHtml text, T.pack "</em>"]
   BoldItalic text -> T.concat [T.pack "<strong><em>", escapeHtml text, T.pack "</em></strong>"]
+  Strikethrough text -> T.concat [T.pack "<s>", escapeHtml text, T.pack "</s>"]
+  Underlined text -> T.concat [T.pack "<u>", escapeHtml text, T.pack "</u>"]
   HorizontalRule -> T.pack "<hr />\n"
   Link text url -> T.concat [T.pack "<a href=\"", url, T.pack "\">", escapeHtml text, T.pack "</a>"]
   Image alt url title -> T.concat [T.pack "<img src=\"", url, T.pack "\" alt=\"", alt, T.pack "\"", titleAttr title, T.pack " />"]
@@ -39,6 +40,7 @@ renderElement element = case element of
   BlockQuote text -> T.concat [T.pack "<blockquote>\n", escapeHtml text, T.pack "</blockquote>\n"]
   CodeBlock text -> T.concat [T.pack "<pre><code>", escapeHtml text, T.pack "</code></pre>\n"]
   InlineCode text -> T.concat [T.pack "<code>", escapeHtml text, T.pack "</code>"]
+  PlainText text -> escapeHtml text
 
 renderListItem :: Text -> Text
 renderListItem item = T.concat [T.pack "  <li>", escapeHtml item, T.pack "</li>\n"]
