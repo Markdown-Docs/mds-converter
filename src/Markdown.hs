@@ -14,7 +14,12 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 renderElement :: MDElement -> Text
 renderElement element = case element of
   Paragraph elements -> T.concat [T.pack "<p>", T.concat (map renderElement elements), T.pack "</p>\n"]
-  BlockQuote text -> T.concat [T.pack "<blockquote>\n", escapeHtml text, T.pack "</blockquote>\n"]
+  BlockQuote elements ->
+    T.concat
+      [ T.pack "<blockquote>\n",
+        T.concat (map renderElement elements),
+        T.pack "</blockquote>\n"
+      ]
   LineBreak -> T.pack "<br />\n"
   Header level text id ->
     T.concat

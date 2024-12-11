@@ -2,6 +2,7 @@ module Parser (parseMarkdown) where
 
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
+import Data.List (groupBy)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
@@ -28,12 +29,35 @@ parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
-  | isBlockQuoteLine line = processBlock (reverse acc) ++ [parseBlockQuote line] ++ parseLines [] lines
+  | isBlockQuoteLine line =
+      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
+          processedQuote = parseBlockQuoteContent (map (T.drop 1 . T.stripStart) quoteLines)
+       in processBlock (reverse acc) ++ [BlockQuote processedQuote] ++ parseLines [] rest
   | isHeaderLine line = processBlock (reverse acc) ++ [parseHeader line] ++ parseLines [] lines
   | isHorizontalRule line = processBlock (reverse acc) ++ [HorizontalRule] ++ parseLines [] lines
   | otherwise = case parseUnderlineHeader (line : lines) of
       Just (header, rest) -> processBlock (reverse acc) ++ [header] ++ parseLines [] rest
       Nothing -> parseLines (line : acc) lines
+
+parseBlockQuoteContent :: [Text] -> [MDElement]
+parseBlockQuoteContent lines =
+  let groupedLines = groupQuotesByLevel lines
+   in concatMap processQuoteGroup groupedLines
+
+groupQuotesByLevel :: [Text] -> [[Text]]
+groupQuotesByLevel = groupBy (\a b -> quoteLevel a == quoteLevel b)
+  where
+    quoteLevel :: Text -> Int
+    quoteLevel = T.length . T.takeWhile (== '>') . T.stripStart
+
+processQuoteGroup :: [Text] -> [MDElement]
+processQuoteGroup lines
+  | null lines = []
+  | isHeaderLine (head stripped) = [parseHeader (head stripped)]
+  | all T.null stripped = []
+  | otherwise = [Paragraph (concatMap processLineForParagraph stripped)]
+  where
+    stripped = map (T.dropWhile (== '>') . T.strip) lines
 
 skipEmptyLines :: [Text] -> [Text]
 skipEmptyLines = dropWhile T.null
@@ -45,7 +69,17 @@ isBlockQuoteLine :: Text -> Bool
 isBlockQuoteLine line = T.isPrefixOf (T.pack ">") (T.strip line)
 
 parseBlockQuote :: Text -> MDElement
-parseBlockQuote line = BlockQuote (T.strip (T.drop 1 line))
+parseBlockQuote line = BlockQuote [Paragraph [PlainText (T.strip (T.drop 1 line))]]
+
+-- Processing nested blockquotes and paragraphs
+processBlockQuote :: [Text] -> [MDElement]
+processBlockQuote [] = []
+processBlockQuote (line : lines)
+  | isBlockQuoteLine line =
+      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
+       in BlockQuote (processBlockQuote (map (T.strip . T.drop 1) quoteLines)) : processBlockQuote rest
+  | isHeaderLine line = parseHeader line : processBlockQuote lines
+  | otherwise = [Paragraph (concatMap processLineForParagraph (line : lines))]
 
 isHorizontalRule :: Text -> Bool
 isHorizontalRule line =
@@ -90,7 +124,7 @@ processBlock [] = []
 processBlock (line : lines)
   | isBlockQuoteLine line =
       let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
-       in BlockQuote (T.unlines (map (T.strip . T.drop 1) quoteLines)) : processBlock rest
+       in BlockQuote (processBlockQuote (map (T.strip . T.drop 1) quoteLines)) : processBlock rest
   | otherwise = [Paragraph (concatMap processLineForParagraph (line : lines))]
 
 processLineForParagraph :: Text -> [MDElement]

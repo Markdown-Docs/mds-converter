@@ -20,7 +20,7 @@ data MDElement
   | Image Text Text Text
   | UnorderedList [Text]
   | OrderedList [Text]
-  | BlockQuote Text
+  | BlockQuote [MDElement]
   | CodeBlock Text
   | InlineCode Text
   deriving (Show, Eq)
