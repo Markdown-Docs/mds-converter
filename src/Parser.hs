@@ -42,7 +42,11 @@ isHeaderLine line = not (T.null line) && T.head line == '#'
 isHorizontalRule :: Text -> Bool
 isHorizontalRule line =
   let trimmed = T.strip line
-   in T.length trimmed >= 3 && (T.all (== '*') trimmed || T.all (== '-') trimmed)
+   in T.length trimmed >= 3
+        && ( T.all (== '*') trimmed
+               || T.all (== '-') trimmed
+               || T.all (== '_') trimmed
+           )
 
 parseHeader :: Text -> MDElement
 parseHeader line =
