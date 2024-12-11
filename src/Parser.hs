@@ -1,9 +1,24 @@
 module Parser (parseMarkdown) where
 
-import Data.Char (isSpace)
+import Crypto.Hash (Digest, MD5, hash)
+import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
 import Types
+  ( MDElement
+      ( Bold,
+        BoldItalic,
+        Header,
+        HorizontalRule,
+        Italic,
+        LineBreak,
+        Paragraph,
+        PlainText,
+        Strikethrough,
+        Underlined
+      ),
+  )
 
 parseMarkdown :: [Text] -> [MDElement]
 parseMarkdown = parseLines [] . skipEmptyLines
@@ -29,7 +44,6 @@ isHorizontalRule line =
   let trimmed = T.strip line
    in T.length trimmed >= 3 && (T.all (== '*') trimmed || T.all (== '-') trimmed)
 
-
 parseHeader :: Text -> MDElement
 parseHeader line =
   let level = min 6 $ T.length $ T.takeWhile (== '#') line
@@ -52,14 +66,28 @@ parseUnderlineHeader (line1 : line2 : rest)
 parseUnderlineHeader _ = Nothing
 
 makeHeaderId :: Text -> Text
-makeHeaderId text =
-  let normalized = T.toLower $ T.strip text
-      words = T.words normalized
-   in T.intercalate (T.pack "-") words
+makeHeaderId = generateHashId
+
+generateHashId :: Text -> Text
+generateHashId text =
+  let hashed = hash (encodeUtf8 text) :: Digest MD5
+   in T.pack (show hashed)
 
 processBlock :: [Text] -> [MDElement]
 processBlock [] = []
-processBlock lines = [Paragraph (concatMap parseInline lines)]
+processBlock lines =
+  [Paragraph (concatMap processLineForParagraph lines)]
+
+processLineForParagraph :: Text -> [MDElement]
+processLineForParagraph line =
+  case processLine line of
+    [] -> []
+    elems -> concatMap processElement elems
+
+processElement :: MDElement -> [MDElement]
+processElement (PlainText t) = parseInline t
+processElement LineBreak = [LineBreak]
+processElement other = [other]
 
 processLine :: Text -> [MDElement]
 processLine line
