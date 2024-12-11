@@ -6,8 +6,16 @@ RUN stack setup --install-ghc
 
 RUN mkdir -p build runnable
 
-COPY src/Main.hs src/Parser.hs src/Markdown.hs src/Types.hs ./
+RUN stack install cryptonite
 
-RUN stack ghc -- Main.hs Parser.hs Markdown.hs Types.hs -O3 -hidir build -odir build -o runnable/parser
+COPY src/Main.hs src/Parser.hs src/Markdown.hs src/Types.hs ./src/
 
-ENTRYPOINT ["./runnable/parser"]
+COPY test/simple_features.md ./test/
+
+COPY makefile ./
+
+RUN make run
+
+ENTRYPOINT ["cat", "test/output.html"]
+
+#ENTRYPOINT [ "ls", "-la" ]
