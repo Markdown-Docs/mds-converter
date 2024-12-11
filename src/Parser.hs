@@ -80,7 +80,15 @@ parseListGroups items =
 
 -- Group list items by their indentation and marker type
 groupListItems :: [Text] -> [[Text]]
-groupListItems = groupBy (\a b -> getListIndent a == getListIndent b)
+groupListItems [] = []
+groupListItems (x:xs) =
+  let (currentGroup, rest) = span (isListWithSameMarker x) (x:xs)
+   in currentGroup : groupListItems rest
+
+isListWithSameMarker :: Text -> Text -> Bool
+isListWithSameMarker firstItem item =
+  (isOrderedListLine firstItem && isOrderedListLine item) ||
+  (isUnorderedListLine firstItem && isUnorderedListLine item)
 
 -- Get the indentation level of a list item
 getListIndent :: Text -> Int
@@ -109,9 +117,9 @@ parseUnorderedList items =
 -- Parse a single list item, handling nested content
 parseListItem :: Text -> MDElement
 parseListItem line =
-  let cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
-      parsedContent = processLineForParagraph cleanedLine
-   in ListItem (PlainText cleanedLine) parsedContent
+  let -- Remove the list marker (digits, *, -, +) and leading/trailing whitespace
+      cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
+   in ListItem (PlainText cleanedLine) []
 
 skipEmptyLines :: [Text] -> [Text]
 skipEmptyLines = dropWhile T.null
