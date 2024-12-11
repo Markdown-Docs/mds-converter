@@ -14,19 +14,11 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 renderElement :: MDElement -> Text
 renderElement element = case element of
   Paragraph elements -> T.concat [T.pack "<p>", T.concat (map renderElement elements), T.pack "</p>\n"]
+  BlockQuote text -> T.concat [T.pack "<blockquote>\n", escapeHtml text, T.pack "</blockquote>\n"]
   LineBreak -> T.pack "<br />\n"
   Header level text id ->
     T.concat
-      [ T.pack "<h",
-        T.pack (show level),
-        T.pack " id=\"",
-        id,
-        T.pack "\">",
-        escapeHtml text,
-        T.pack "</h",
-        T.pack (show level),
-        T.pack ">\n"
-      ]
+      [T.pack "<h", T.pack (show level), T.pack " id=\"", id, T.pack "\">", escapeHtml text, T.pack "</h", T.pack (show level), T.pack ">\n"]
   Bold text -> T.concat [T.pack "<strong>", escapeHtml text, T.pack "</strong>"]
   Italic text -> T.concat [T.pack "<em>", escapeHtml text, T.pack "</em>"]
   BoldItalic text -> T.concat [T.pack "<strong><em>", escapeHtml text, T.pack "</em></strong>"]
@@ -37,7 +29,6 @@ renderElement element = case element of
   Image alt url title -> T.concat [T.pack "<img src=\"", url, T.pack "\" alt=\"", alt, T.pack "\"", titleAttr title, T.pack " />"]
   UnorderedList items -> T.concat [T.pack "<ul>\n", T.concat (map renderListItem items), T.pack "</ul>\n"]
   OrderedList items -> T.concat [T.pack "<ol>\n", T.concat (map renderListItem items), T.pack "</ol>\n"]
-  BlockQuote text -> T.concat [T.pack "<blockquote>\n", escapeHtml text, T.pack "</blockquote>\n"]
   CodeBlock text -> T.concat [T.pack "<pre><code>", escapeHtml text, T.pack "</code></pre>\n"]
   InlineCode text -> T.concat [T.pack "<code>", escapeHtml text, T.pack "</code>"]
   PlainText text -> escapeHtml text

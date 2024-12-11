@@ -7,7 +7,8 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Types
   ( MDElement
-      ( Bold,
+      ( BlockQuote,
+        Bold,
         BoldItalic,
         Header,
         HorizontalRule,
@@ -27,6 +28,7 @@ parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
+  | isBlockQuoteLine line = processBlock (reverse acc) ++ [parseBlockQuote line] ++ parseLines [] lines
   | isHeaderLine line = processBlock (reverse acc) ++ [parseHeader line] ++ parseLines [] lines
   | isHorizontalRule line = processBlock (reverse acc) ++ [HorizontalRule] ++ parseLines [] lines
   | otherwise = case parseUnderlineHeader (line : lines) of
@@ -38,6 +40,12 @@ skipEmptyLines = dropWhile T.null
 
 isHeaderLine :: Text -> Bool
 isHeaderLine line = not (T.null line) && T.head line == '#'
+
+isBlockQuoteLine :: Text -> Bool
+isBlockQuoteLine line = T.isPrefixOf (T.pack ">") (T.strip line)
+
+parseBlockQuote :: Text -> MDElement
+parseBlockQuote line = BlockQuote (T.strip (T.drop 1 line))
 
 isHorizontalRule :: Text -> Bool
 isHorizontalRule line =
@@ -79,14 +87,18 @@ generateHashId text =
 
 processBlock :: [Text] -> [MDElement]
 processBlock [] = []
-processBlock lines =
-  [Paragraph (concatMap processLineForParagraph lines)]
+processBlock (line : lines)
+  | isBlockQuoteLine line =
+      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
+       in BlockQuote (T.unlines (map (T.strip . T.drop 1) quoteLines)) : processBlock rest
+  | otherwise = [Paragraph (concatMap processLineForParagraph (line : lines))]
 
 processLineForParagraph :: Text -> [MDElement]
-processLineForParagraph line =
-  case processLine line of
-    [] -> []
-    elems -> concatMap processElement elems
+processLineForParagraph line
+  | isBlockQuoteLine line = []
+  | otherwise = case processLine line of
+      [] -> []
+      elems -> concatMap processElement elems
 
 processElement :: MDElement -> [MDElement]
 processElement (PlainText t) = parseInline t
