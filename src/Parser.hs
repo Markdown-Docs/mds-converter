@@ -8,8 +8,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Types
   ( MDElement
-      ( BlockQuote,
-        Bold,
+      ( Bold,
         BoldItalic,
         Header,
         HorizontalRule,
@@ -18,7 +17,8 @@ import Types
         Paragraph,
         PlainText,
         Strikethrough,
-        Underlined
+        Underlined,
+        OrderedList
       ),
   )
 
@@ -29,57 +29,30 @@ parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
-  | isBlockQuoteLine line =
-      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
-          processedQuote = parseBlockQuoteContent (map (T.drop 1 . T.stripStart) quoteLines)
-       in processBlock (reverse acc) ++ [BlockQuote processedQuote] ++ parseLines [] rest
+  | isOrderedListLine line =
+      let (listItems, rest) = extractOrderedListItems (line : lines)
+          parsedItems = map (T.strip . T.dropWhile (\c -> isDigit c || c == '.')) listItems
+       in processBlock (reverse acc) ++ [OrderedList parsedItems] ++ parseLines [] rest
   | isHeaderLine line = processBlock (reverse acc) ++ [parseHeader line] ++ parseLines [] lines
   | isHorizontalRule line = processBlock (reverse acc) ++ [HorizontalRule] ++ parseLines [] lines
   | otherwise = case parseUnderlineHeader (line : lines) of
       Just (header, rest) -> processBlock (reverse acc) ++ [header] ++ parseLines [] rest
       Nothing -> parseLines (line : acc) lines
 
-parseBlockQuoteContent :: [Text] -> [MDElement]
-parseBlockQuoteContent lines =
-  let groupedLines = groupQuotesByLevel lines
-   in concatMap processQuoteGroup groupedLines
+isOrderedListLine :: Text -> Bool
+isOrderedListLine line =
+  case T.stripPrefix (T.takeWhile isDigit line) line of
+    Just rest -> T.stripPrefix (T.pack ". ") rest /= Nothing
+    Nothing -> False
 
-groupQuotesByLevel :: [Text] -> [[Text]]
-groupQuotesByLevel = groupBy (\a b -> quoteLevel a == quoteLevel b)
-  where
-    quoteLevel :: Text -> Int
-    quoteLevel = T.length . T.takeWhile (== '>') . T.stripStart
-
-processQuoteGroup :: [Text] -> [MDElement]
-processQuoteGroup lines
-  | null lines = []
-  | isHeaderLine (head stripped) = [parseHeader (head stripped)]
-  | all T.null stripped = []
-  | otherwise = [Paragraph (concatMap processLineForParagraph stripped)]
-  where
-    stripped = map (T.dropWhile (== '>') . T.strip) lines
+extractOrderedListItems :: [Text] -> ([Text], [Text])
+extractOrderedListItems = span isOrderedListLine
 
 skipEmptyLines :: [Text] -> [Text]
 skipEmptyLines = dropWhile T.null
 
 isHeaderLine :: Text -> Bool
 isHeaderLine line = not (T.null line) && T.head line == '#'
-
-isBlockQuoteLine :: Text -> Bool
-isBlockQuoteLine line = T.isPrefixOf (T.pack ">") (T.strip line)
-
-parseBlockQuote :: Text -> MDElement
-parseBlockQuote line = BlockQuote [Paragraph [PlainText (T.strip (T.drop 1 line))]]
-
--- Processing nested blockquotes and paragraphs
-processBlockQuote :: [Text] -> [MDElement]
-processBlockQuote [] = []
-processBlockQuote (line : lines)
-  | isBlockQuoteLine line =
-      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
-       in BlockQuote (processBlockQuote (map (T.strip . T.drop 1) quoteLines)) : processBlockQuote rest
-  | isHeaderLine line = parseHeader line : processBlockQuote lines
-  | otherwise = [Paragraph (concatMap processLineForParagraph (line : lines))]
 
 isHorizontalRule :: Text -> Bool
 isHorizontalRule line =
@@ -121,18 +94,13 @@ generateHashId text =
 
 processBlock :: [Text] -> [MDElement]
 processBlock [] = []
-processBlock (line : lines)
-  | isBlockQuoteLine line =
-      let (quoteLines, rest) = span isBlockQuoteLine (line : lines)
-       in BlockQuote (processBlockQuote (map (T.strip . T.drop 1) quoteLines)) : processBlock rest
-  | otherwise = [Paragraph (concatMap processLineForParagraph (line : lines))]
+processBlock (line : lines) =
+  [Paragraph (concatMap processLineForParagraph (line : lines))]
 
 processLineForParagraph :: Text -> [MDElement]
-processLineForParagraph line
-  | isBlockQuoteLine line = []
-  | otherwise = case processLine line of
-      [] -> []
-      elems -> concatMap processElement elems
+processLineForParagraph line = case processLine line of
+  [] -> []
+  elems -> concatMap processElement elems
 
 processElement :: MDElement -> [MDElement]
 processElement (PlainText t) = parseInline t
