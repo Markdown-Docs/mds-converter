@@ -18,8 +18,9 @@ data MDElement
   | HorizontalRule
   | Link Text Text
   | Image Text Text Text
-  | UnorderedList [Text]
-  | OrderedList [Text]
+  | UnorderedList [MDElement]
+  | OrderedList [MDElement]
+  | ListItem MDElement [MDElement] -- New type to support nested lists
   | CodeBlock Text
   | InlineCode Text
   deriving (Show, Eq)

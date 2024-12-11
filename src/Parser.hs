@@ -3,8 +3,8 @@ module Parser (parseMarkdown) where
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (groupBy)
-import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text (Text, break)
 import Data.Text.Encoding (encodeUtf8)
 import Types
   ( MDElement
@@ -14,11 +14,13 @@ import Types
         HorizontalRule,
         Italic,
         LineBreak,
+        ListItem,
+        OrderedList,
         Paragraph,
         PlainText,
         Strikethrough,
         Underlined,
-        OrderedList
+        UnorderedList
       ),
   )
 
@@ -29,24 +31,87 @@ parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
-  | isOrderedListLine line =
-      let (listItems, rest) = extractOrderedListItems (line : lines)
-          parsedItems = map (T.strip . T.dropWhile (\c -> isDigit c || c == '.')) listItems
-       in processBlock (reverse acc) ++ [OrderedList parsedItems] ++ parseLines [] rest
+  | isListLine line =
+      let (listItems, rest) = extractListItems (line : lines)
+          parsedLists = parseNestedLists listItems
+       in processBlock (reverse acc) ++ parsedLists ++ parseLines [] rest
   | isHeaderLine line = processBlock (reverse acc) ++ [parseHeader line] ++ parseLines [] lines
   | isHorizontalRule line = processBlock (reverse acc) ++ [HorizontalRule] ++ parseLines [] lines
   | otherwise = case parseUnderlineHeader (line : lines) of
       Just (header, rest) -> processBlock (reverse acc) ++ [header] ++ parseLines [] rest
       Nothing -> parseLines (line : acc) lines
 
+-- Check if the line is a list item (ordered or unordered)
+isListLine :: Text -> Bool
+isListLine line =
+  isOrderedListLine line || isUnorderedListLine line
+
+-- Check if the line is an ordered list item
 isOrderedListLine :: Text -> Bool
 isOrderedListLine line =
   case T.stripPrefix (T.takeWhile isDigit line) line of
     Just rest -> T.stripPrefix (T.pack ". ") rest /= Nothing
     Nothing -> False
 
-extractOrderedListItems :: [Text] -> ([Text], [Text])
-extractOrderedListItems = span isOrderedListLine
+-- Check if the line is an unordered list item
+isUnorderedListLine :: Text -> Bool
+isUnorderedListLine line =
+  T.length line > 2 && T.head line `elem` ['*', '-', '+'] && T.take 2 line `elem` [T.pack "* ", T.pack "- ", T.pack "+ "]
+
+-- Extract list items, considering indentation for nested lists
+extractListItems :: [Text] -> ([Text], [Text])
+extractListItems lines =
+  let (items, rest) = span isListLine lines
+   in (items, rest)
+
+-- Parse nested lists with different markers
+parseNestedLists :: [Text] -> [MDElement]
+parseNestedLists items =
+  let (orderedLists, unorderedLists) = parseListGroups items
+   in orderedLists ++ unorderedLists
+
+-- Group and parse list items
+parseListGroups :: [Text] -> ([MDElement], [MDElement])
+parseListGroups items =
+  let groupedLists = groupListItems items
+      parsedOrdered = map parseOrderedList (filter isOrderedListGroup groupedLists)
+      parsedUnordered = map parseUnorderedList (filter isUnorderedListGroup groupedLists)
+   in (parsedOrdered, parsedUnordered)
+
+-- Group list items by their indentation and marker type
+groupListItems :: [Text] -> [[Text]]
+groupListItems = groupBy (\a b -> getListIndent a == getListIndent b)
+
+-- Get the indentation level of a list item
+getListIndent :: Text -> Int
+getListIndent line = T.length (T.takeWhile isSpace line)
+
+-- Check if a group is an ordered list group
+isOrderedListGroup :: [Text] -> Bool
+isOrderedListGroup (x : _) = isOrderedListLine x
+isOrderedListGroup _ = False
+
+-- Check if a group is an unordered list group
+isUnorderedListGroup :: [Text] -> Bool
+isUnorderedListGroup (x : _) = isUnorderedListLine x
+isUnorderedListGroup _ = False
+
+-- Parse an ordered list, supporting nested structures
+parseOrderedList :: [Text] -> MDElement
+parseOrderedList items =
+  OrderedList $ map parseListItem items
+
+-- Parse an unordered list, supporting nested structures
+parseUnorderedList :: [Text] -> MDElement
+parseUnorderedList items =
+  UnorderedList $ map parseListItem items
+
+-- Parse a single list item, handling nested content
+parseListItem :: Text -> MDElement
+parseListItem line =
+  let cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
+      parsedContent = processLineForParagraph cleanedLine
+   in ListItem (PlainText cleanedLine) parsedContent
 
 skipEmptyLines :: [Text] -> [Text]
 skipEmptyLines = dropWhile T.null
