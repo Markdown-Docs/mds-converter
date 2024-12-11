@@ -117,7 +117,7 @@ parseUnorderedList items =
 -- Parse a single list item, handling nested content
 parseListItem :: Text -> MDElement
 parseListItem line =
-  let -- Remove the list marker (digits, *, -, +) and leading/trailing whitespace
+  let
       cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
    in ListItem (PlainText cleanedLine) []
 
