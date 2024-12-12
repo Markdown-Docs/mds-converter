@@ -38,6 +38,14 @@ renderElement element = case element of
   CodeBlock text -> T.concat [T.pack "<pre><code>", escapeHtml text, T.pack "</code></pre>\n"]
   InlineCode text -> T.concat [T.pack "<code>", escapeHtml text, T.pack "</code>"]
   PlainText text -> escapeHtml text
+  Checkbox checked content ->
+    T.concat
+      [ T.pack "<input class=\"task-list-item-checkbox\" ",
+        if checked then T.pack "checked=\"\" " else T.pack "",
+        T.pack "type=\"checkbox\" />",
+        T.pack " ",
+        escapeHtml content
+      ]
 
 renderListItem :: MDElement -> Text
 renderListItem = renderElement

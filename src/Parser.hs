@@ -10,6 +10,7 @@ import Types
   ( MDElement
       ( Bold,
         BoldItalic,
+        Checkbox,
         Header,
         HorizontalRule,
         Italic,
@@ -279,11 +280,22 @@ parseInline text
   | T.null text = []
   | otherwise =
       case T.uncons text of
+        Just ('[', _) -> parseCheckbox text
         Just ('*', _) -> parseDecoration '*' text
         Just ('_', _) -> parseDecoration '_' text
         Just ('~', _) -> parseStrikethrough text
         Just ('<', _) -> parseHtmlTags text
         _ -> parsePlainText text
+
+parseCheckbox :: Text -> [MDElement]
+parseCheckbox text
+  | T.isPrefixOf (T.pack "[x]") text || T.isPrefixOf (T.pack "[X]") text =
+      let content = T.strip $ T.drop 3 text
+       in [Checkbox True content]
+  | T.isPrefixOf (T.pack "[ ]") text =
+      let content = T.strip $ T.drop 3 text
+       in [Checkbox False content]
+  | otherwise = parsePlainText text
 
 -- Handle decorations like *, **, *** or _, __, ___
 parseDecoration :: Char -> Text -> [MDElement]
