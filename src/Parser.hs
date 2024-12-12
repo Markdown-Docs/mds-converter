@@ -399,22 +399,28 @@ parseLinkUrlAndTitle :: Text -> (Text, Maybe Text, Text)
 parseLinkUrlAndTitle t
   | T.isPrefixOf (T.pack "(") t =
       let urlAndRest = T.tail t
-          -- Updated to handle more complex parsing
           (rawUrlAndTitle, afterUrlAndTitle) = T.break (== ')') urlAndRest
-          -- Split on optional title
-          parts = T.splitOn (T.pack "\"") $ T.strip rawUrlAndTitle
+          parts = splitUrlAndTitle rawUrlAndTitle
        in case parts of
-            [url] -> (T.strip url, Nothing, afterUrlAndTitle)
-            [url, title] ->
+            (url, title) ->
               let cleanUrl = T.strip url
-                  cleanTitle = unescapeTitle $ T.strip title
-               in (cleanUrl, Just cleanTitle, T.drop 1 afterUrlAndTitle)
-            [url, title, _] ->
-              let cleanUrl = T.strip url
-                  cleanTitle = unescapeTitle $ T.strip title
-               in (cleanUrl, Just cleanTitle, T.drop 1 afterUrlAndTitle)
-            _ -> (T.pack "", Nothing, t)
+                  cleanTitle = fmap (unescapeTitle . T.strip) title
+               in (cleanUrl, cleanTitle, T.drop 1 afterUrlAndTitle)
   | otherwise = (T.pack "", Nothing, t)
+
+splitUrlAndTitle :: Text -> (Text, Maybe Text)
+splitUrlAndTitle text =
+  let stripped = T.strip text
+      (urlPart, maybeTitlePart) =
+        if T.isSuffixOf (T.pack "\"") stripped && T.count (T.pack "\"") stripped >= 2
+          then
+            let reversedText = T.reverse stripped
+                (reversedTitle, reversedRest) = T.break (== '"') (T.tail reversedText)
+             in ( T.reverse (T.tail reversedRest),
+                  Just $ T.reverse reversedTitle
+                )
+          else (stripped, Nothing)
+   in (urlPart, maybeTitlePart)
 
 unescapeTitle :: Text -> Text
 unescapeTitle =
