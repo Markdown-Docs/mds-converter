@@ -91,8 +91,7 @@ titleAttr title = if T.null title then T.pack "" else T.concat [T.pack " title=\
 
 escapeHtml :: Text -> Text
 escapeHtml =
-  T.replace (T.pack "&") (T.pack "&amp;")
-    . T.replace (T.pack "<") (T.pack "&lt;")
+  T.replace (T.pack "<") (T.pack "&lt;")
     . T.replace (T.pack ">") (T.pack "&gt;")
     . T.replace (T.pack "\"") (T.pack "&quot;")
 

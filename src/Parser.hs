@@ -114,6 +114,9 @@ parseMarkdown = parseLines [] . skipEmptyLines
 parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
+  | isCodeBlockStart line =
+      let (codeBlock, rest) = parseCodeBlock (line : lines)
+       in processBlock (reverse acc) ++ [codeBlock] ++ parseLines [] rest
   | isTableLine line =
       case identifyTable (line : lines) of
         Just (tableLines, rest) ->
@@ -359,6 +362,7 @@ parseInline text
   | T.null text = []
   | otherwise =
       case T.uncons text of
+        Just ('`', _) -> parseInlineCode text
         Just ('[', _) -> parseLinkOrCheckbox text
         Just ('*', _) -> parseDecoration '*' text
         Just ('_', _) -> parseDecoration '_' text
@@ -516,3 +520,29 @@ parsePlainText :: Text -> [MDElement]
 parsePlainText text =
   let (content, rest) = T.break (`elem` ['*', '_', '~', '<']) text
    in PlainText content : parseInline rest
+
+isCodeBlockStart :: Text -> Bool
+isCodeBlockStart line =
+  T.isPrefixOf (T.pack "```") (T.stripStart line)
+
+parseCodeBlock :: [Text] -> (MDElement, [Text])
+parseCodeBlock (firstLine : rest) =
+  let lang = T.strip $ T.drop 3 $ T.stripStart firstLine
+      (codeLines, remainingLines) = span (not . isCodeBlockStart) rest
+      codeBlockContent = T.unlines codeLines
+   in (CodeBlock codeBlockContent, drop 1 remainingLines)
+parseCodeBlock _ = (CodeBlock T.empty, [])
+
+parseInlineCode :: Text -> [MDElement]
+parseInlineCode text
+  | T.isPrefixOf (T.pack "``") text =
+      let (content, rest) = T.breakOn (T.pack "``") (T.drop 2 text)
+       in if T.isPrefixOf (T.pack "``") rest
+            then InlineCode (T.strip content) : parseInline (T.drop 2 rest)
+            else PlainText (T.pack "``") : parseInline (T.drop 2 text)
+  | T.isPrefixOf (T.pack "`") text =
+      let (content, rest) = T.breakOn (T.pack "`") (T.drop 1 text)
+       in if T.isPrefixOf (T.pack "`") rest
+            then InlineCode (T.strip content) : parseInline (T.drop 1 rest)
+            else PlainText (T.pack "`") : parseInline (T.drop 1 text)
+  | otherwise = [PlainText text]

@@ -27,12 +27,12 @@ data MDElement
   | Link
       { linkText :: Text,
         linkUrl :: Text,
-        linkTitle :: Maybe Text -- Optional title attribute
+        linkTitle :: Maybe Text
       }
   | Image Text Text Text
   | UnorderedList [MDElement]
   | OrderedList [MDElement]
-  | ListItem MDElement [MDElement] -- New type to support nested lists
+  | ListItem MDElement [MDElement]
   | CodeBlock Text
   | InlineCode Text
   | Checkbox Bool [MDElement]
