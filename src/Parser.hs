@@ -362,7 +362,10 @@ parseInline text
         Just ('*', _) -> parseDecoration '*' text
         Just ('_', _) -> parseDecoration '_' text
         Just ('~', _) -> parseStrikethrough text
-        Just ('<', _) -> parseHtmlTags text
+        Just ('<', _) ->
+          if T.isPrefixOf (T.pack "<u>") text || T.isPrefixOf (T.pack "</u>") text
+            then parseHtmlTags text
+            else parseAngleBracketLink text
         _ -> parsePlainText text
 
 parseLinkOrCheckbox :: Text -> [MDElement]
@@ -375,37 +378,54 @@ parseLinkOrCheckbox text
 
 parseBracketLink :: Text -> [MDElement]
 parseBracketLink text =
-  let linkTextStart = T.tail $ T.takeWhile (/= ']') text
-      urlStart = T.drop 2 $ T.dropWhile (/= '(') text
-      (linkUrl, rest) = T.break (== ')') urlStart
-      cleanUrl = T.strip linkUrl
-
-      -- Check for optional title
-      (titlePart, remainingText) =
-        case T.uncons rest of
-          Just (_, titleText) ->
-            let stripped = T.strip $ T.takeWhile (/= ')') titleText
-                titleRemaining = T.drop (T.length stripped + 1) titleText
-             in if T.isPrefixOf (T.pack "\"") stripped && T.isSuffixOf (T.pack "\"") stripped
-                  then (Just (T.init $ T.tail stripped), titleRemaining)
-                  else (Nothing, rest)
-          Nothing -> (Nothing, rest)
-
-      linkTextParsed = parseInline linkTextStart
-      nextText = T.drop 1 remainingText
-   in case linkTextParsed of
-        [] -> Link cleanUrl cleanUrl Nothing : parseInline nextText
-        [PlainText t] -> Link t cleanUrl titlePart : parseInline nextText
-        multipleElems -> Link (T.concat $ map renderPlainText multipleElems) cleanUrl titlePart : parseInline nextText
+  let (linkText, afterText) = parseLinkText text
+      (url, title, remaining) = parseLinkUrlAndTitle afterText
+   in case parseInline linkText of
+        [] -> Link url url Nothing : parseInline remaining
+        [PlainText t] -> Link t url title : parseInline remaining
+        multipleElems ->
+          let renderedText = T.concat $ map renderPlainText multipleElems
+           in Link renderedText url title : parseInline remaining
   where
-    renderPlainText (PlainText t) = t
-    renderPlainText _ = T.empty
+    -- Parse the link text between square brackets
+    parseLinkText :: Text -> (Text, Text)
+    parseLinkText t =
+      let linkTextStart = T.tail $ T.takeWhile (/= ']') t
+          remaining = T.drop (T.length linkTextStart + 2) t
+       in (linkTextStart, remaining)
+
+    -- Parse URL and optional title
+    parseLinkUrlAndTitle :: Text -> (Text, Maybe Text, Text)
+    parseLinkUrlAndTitle t
+      | T.isPrefixOf (T.pack "(") t =
+          let urlAndRest = T.tail t
+              (rawUrl, afterUrl) = T.break (\c -> c == ')' || c == '"') urlAndRest
+              cleanUrl = T.strip rawUrl
+           in case T.uncons afterUrl of
+                Just ('"', titleRest) ->
+                  let (rawTitle, afterTitle) = T.break (== '"') (T.tail titleRest)
+                      cleanTitle = unescapeTitle rawTitle
+                      finalRest = T.drop (T.length rawTitle + 2) afterTitle
+                   in (cleanUrl, Just cleanTitle, finalRest)
+                Just (')', rest) -> (cleanUrl, Nothing, rest)
+                _ -> (cleanUrl, Nothing, T.empty)
+      | otherwise = (T.pack "", Nothing, t)
+
+    -- Unescape title, particularly handling &quot;
+    unescapeTitle :: Text -> Text
+    unescapeTitle =
+      T.replace (T.pack "&quot;") (T.pack "\"")
+        . T.replace (T.pack "&amp;") (T.pack "&")
+        . T.replace (T.pack "&lt;") (T.pack "<")
+        . T.replace (T.pack "&gt;") (T.pack ">")
 
 parseAngleBracketLink :: Text -> [MDElement]
-parseAngleBracketLink text =
-  let (link, rest) = T.break (== '>') (T.tail text)
-      cleanLink = T.strip link
-   in Link cleanLink cleanLink Nothing : parseInline (T.drop 1 rest)
+parseAngleBracketLink text
+  | T.isPrefixOf (T.pack "<") text && T.isSuffixOf (T.pack ">") text =
+      let link = T.init $ T.tail text
+          cleanLink = T.strip link
+       in Link cleanLink cleanLink Nothing : parseInline (T.drop (T.length link + 2) text)
+  | otherwise = [PlainText text]
 
 renderPlainText :: MDElement -> Text
 renderPlainText (PlainText t) = t
