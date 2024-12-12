@@ -3,7 +3,7 @@ module Parser (parseMarkdown, isTableLine) where
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (groupBy)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text, break)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
@@ -152,7 +152,7 @@ isOrderedListLine line =
   case T.uncons line of
     Just (c, rest) | isDigit c ->
       case T.stripPrefix (T.takeWhile isDigit line) line of
-        Just rest' -> T.stripPrefix (T.pack ". ") rest' /= Nothing
+        Just rest' -> isJust (T.stripPrefix (T.pack ". ") rest')
         Nothing -> False
     _ -> False
 
@@ -528,7 +528,7 @@ isCodeBlockStart line =
 parseCodeBlock :: [Text] -> (MDElement, [Text])
 parseCodeBlock (firstLine : rest) =
   let lang = T.strip $ T.drop 3 $ T.stripStart firstLine
-      (codeLines, remainingLines) = span (not . isCodeBlockStart) rest
+      (codeLines, remainingLines) = Prelude.break isCodeBlockStart rest
       codeBlockContent = T.unlines codeLines
    in (CodeBlock codeBlockContent, drop 1 remainingLines)
 parseCodeBlock _ = (CodeBlock T.empty, [])
