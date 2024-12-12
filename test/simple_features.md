@@ -86,12 +86,12 @@ ___
 - [ ] Неотмеченный пункт
 
 1. Пункт
-	1. Подпункт
-		1. Подподпункт
+    1. Подпункт
+        1. Подподпункт
 
 - Пункт
-	- Подпункт
-		- Подподпункт
+    - Подпункт
+        - Подподпункт
 
 
 1. Пункт
@@ -129,26 +129,6 @@ ___
 Функция `print (x)` выводит содержимое переменной ```x```.
 
 ```
-#include <stdio.h>
-int main() {
-   printf("Hello, World!");
-   return 0;
-}
-```
-
-	let x = 12;
-	let y = 6;
-	console.log(x + y);
-
-
-```python
-if x > 0:
-	print (x)
-else:
-	print ('Hello, World!')
-```
-
-```c
 #include <stdio.h>
 int main() {
    printf("Hello, World!");
