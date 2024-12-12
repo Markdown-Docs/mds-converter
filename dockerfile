@@ -1,6 +1,6 @@
 FROM haskell:latest
 
-WORKDIR /usr/src/app 
+WORKDIR /usr/app 
 
 RUN stack setup --install-ghc
 
@@ -14,8 +14,8 @@ COPY test/simple_features.md ./test/
 
 COPY makefile ./
 
-RUN make run
+RUN make build
 
-ENTRYPOINT ["cat", "test/output.html"]
+EXPOSE 3000
 
-#ENTRYPOINT [ "ls", "-la" ]
+CMD ["./runnable/parser", "-c"]

@@ -14,4 +14,7 @@ build: src/Main.hs src/Parser.hs src/Markdown.hs src/Types.hs
 run: build
 	./runnable/parser ./test/simple_features.md ./test/output.html
 
+run-c: build
+	./runnable/parser -c
+
 .PHONY: format build run
