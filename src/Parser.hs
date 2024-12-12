@@ -3,8 +3,8 @@ module Parser (parseMarkdown) where
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (groupBy)
-import qualified Data.Text as T
 import Data.Text (Text, break)
+import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Types
   ( MDElement
@@ -24,6 +24,16 @@ import Types
       ),
   )
 
+data ListContext = ListContext
+  { indentLevel :: Int,
+    content :: Text,
+    listType :: ListType,
+    children :: [MDElement]
+  }
+  deriving (Show, Eq)
+
+data ListType = Ordered | Unordered deriving (Show, Eq)
+
 parseMarkdown :: [Text] -> [MDElement]
 parseMarkdown = parseLines [] . skipEmptyLines
 
@@ -41,34 +51,101 @@ parseLines acc (line : lines)
       Just (header, rest) -> processBlock (reverse acc) ++ [header] ++ parseLines [] rest
       Nothing -> parseLines (line : acc) lines
 
+-- Helper function to get level of nesting based on indentation
+getIndentLevel :: Text -> Int
+getIndentLevel line =
+  let spaces = T.length $ T.takeWhile isSpace line
+   in spaces `div` 4 + T.length (T.takeWhile (== '\t') line)
+
 -- Check if the line is a list item (ordered or unordered)
 isListLine :: Text -> Bool
 isListLine line =
-  isOrderedListLine line || isUnorderedListLine line
+  let stripped = T.stripStart line
+   in isOrderedListLine stripped || isUnorderedListLine stripped
 
 -- Check if the line is an ordered list item
 isOrderedListLine :: Text -> Bool
 isOrderedListLine line =
-  case T.stripPrefix (T.takeWhile isDigit line) line of
-    Just rest -> T.stripPrefix (T.pack ". ") rest /= Nothing
-    Nothing -> False
+  case T.uncons line of
+    Just (c, rest) | isDigit c ->
+      case T.stripPrefix (T.takeWhile isDigit line) line of
+        Just rest' -> T.stripPrefix (T.pack ". ") rest' /= Nothing
+        Nothing -> False
+    _ -> False
 
 -- Check if the line is an unordered list item
 isUnorderedListLine :: Text -> Bool
 isUnorderedListLine line =
-  T.length line > 2 && T.head line `elem` ['*', '-', '+'] && T.take 2 line `elem` [T.pack "* ", T.pack "- ", T.pack "+ "]
+  case T.uncons line of
+    Just (c, rest)
+      | c `elem` ['*', '-', '+'] ->
+          T.stripPrefix (T.singleton c) line == Just (T.cons ' ' (T.stripStart rest))
+    _ -> False
 
 -- Extract list items, considering indentation for nested lists
 extractListItems :: [Text] -> ([Text], [Text])
-extractListItems lines =
-  let (items, rest) = span isListLine lines
-   in (items, rest)
+extractListItems = span (\line -> isListLine line || (not (T.null line) && getIndentLevel line > 0))
+
+parseListContext :: Text -> ListContext
+parseListContext line =
+  let level = getIndentLevel line
+      cleaned = T.stripStart line
+      listType = if isOrderedListLine cleaned then Ordered else Unordered
+      -- Extract content after the list marker
+      content = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+', '.', ' ']) cleaned
+      -- Parse the content for inline markdown
+      parsedContent = parseInline content
+   in ListContext level content listType []
+
+groupByTopLevel :: [ListContext] -> [[ListContext]]
+groupByTopLevel [] = []
+groupByTopLevel (x : xs) =
+  let (group, rest) = span (\item -> indentLevel item >= indentLevel x) xs
+      nestedGroups = groupListsByLevel (x : group)
+   in nestedGroups : groupByTopLevel rest
+
+groupListsByLevel :: [ListContext] -> [ListContext]
+groupListsByLevel [] = []
+groupListsByLevel (x : xs) =
+  let currentLevel = indentLevel x
+      (children, rest) = span (\item -> indentLevel item > currentLevel) xs
+      nestedChildren = ([constructListElement (groupListsByLevel children) | not (null children)])
+      updatedContext = x {children = nestedChildren}
+   in updatedContext : groupListsByLevel rest
+
+constructListElement :: [ListContext] -> MDElement
+constructListElement [] = UnorderedList [] -- Fallback
+constructListElement contexts@(x : _) =
+  let listItems = map makeListItem contexts
+   in case listType x of
+        Ordered -> OrderedList listItems
+        Unordered -> UnorderedList listItems
+  where
+    makeListItem ctx =
+      -- Parse the content for inline markdown instead of wrapping in PlainText
+      ListItem (processInlineContent $ content ctx) (children ctx)
+
+-- Helper function to process inline content for list items
+processInlineContent :: Text -> MDElement
+processInlineContent text =
+  case parseInline text of
+    [single] -> single
+    multiple -> Paragraph multiple
+
 
 -- Parse nested lists with different markers
 parseNestedLists :: [Text] -> [MDElement]
 parseNestedLists items =
-  let (orderedLists, unorderedLists) = parseListGroups items
-   in orderedLists ++ unorderedLists
+  let contexts = map parseListContext items
+      grouped = groupByTopLevel contexts
+   in map constructListElement grouped
+  where
+    parseListContext line =
+      let level = getIndentLevel line
+          cleaned = T.stripStart line
+          listType = if isOrderedListLine cleaned then Ordered else Unordered
+          content = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+', '.', ' ']) cleaned
+       in ListContext level content listType []
 
 -- Group and parse list items
 parseListGroups :: [Text] -> ([MDElement], [MDElement])
@@ -81,14 +158,14 @@ parseListGroups items =
 -- Group list items by their indentation and marker type
 groupListItems :: [Text] -> [[Text]]
 groupListItems [] = []
-groupListItems (x:xs) =
-  let (currentGroup, rest) = span (isListWithSameMarker x) (x:xs)
+groupListItems (x : xs) =
+  let (currentGroup, rest) = span (isListWithSameMarker x) (x : xs)
    in currentGroup : groupListItems rest
 
 isListWithSameMarker :: Text -> Text -> Bool
 isListWithSameMarker firstItem item =
-  (isOrderedListLine firstItem && isOrderedListLine item) ||
-  (isUnorderedListLine firstItem && isUnorderedListLine item)
+  (isOrderedListLine firstItem && isOrderedListLine item)
+    || (isUnorderedListLine firstItem && isUnorderedListLine item)
 
 -- Get the indentation level of a list item
 getListIndent :: Text -> Int
@@ -117,8 +194,7 @@ parseUnorderedList items =
 -- Parse a single list item, handling nested content
 parseListItem :: Text -> MDElement
 parseListItem line =
-  let
-      cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
+  let cleanedLine = T.strip $ T.dropWhile (\c -> isDigit c || c `elem` ['*', '-', '+'] || isSpace c) line
    in ListItem (PlainText cleanedLine) []
 
 skipEmptyLines :: [Text] -> [Text]
@@ -167,8 +243,13 @@ generateHashId text =
 
 processBlock :: [Text] -> [MDElement]
 processBlock [] = []
-processBlock (line : lines) =
-  [Paragraph (concatMap processLineForParagraph (line : lines))]
+processBlock lines =
+  [Paragraph (concatMap processLineForParagraph $ addSpaceBetweenLines lines)]
+  where
+    addSpaceBetweenLines :: [Text] -> [Text]
+    addSpaceBetweenLines [] = []
+    addSpaceBetweenLines [x] = [x]
+    addSpaceBetweenLines (x:xs) = x : map (T.append (T.singleton ' ')) xs
 
 processLineForParagraph :: Text -> [MDElement]
 processLineForParagraph line = case processLine line of
