@@ -209,14 +209,52 @@
 <h1 id="967f745ae03431977fb89c965c02c00c">include &amp;lt;stdio.h&amp;gt;</h1>
 <p>int main() { printf(&amp;quot;Hello, World!&amp;quot;); return 0; } ```</p>
 <p>```javascript let x = 12; let y = 6; console.log(x + y); ```</p>
-<p>
-  |Столбец 1|Столбец 2|Столбец 3| |-|--------|---| |Длинная запись в первом
-  столбце|Запись в столбце 2|Запись в столбце 3| |Кртк зпс| |Слева нет записи|
-</p>
-<p>
-  |Столбец 1|Столбец 2|Столбец 3| |:-|:-:|-:| |Равнение по левому краю|Равнение
-  по центру|Равнение по правому краю| |Запись|Запись|Запись|
-</p>
+<table>
+  <thead>
+    <tr>
+      <th>Столбец 1</th>
+      <th>
+        <p><strong>Столбец</strong> 2</p>
+      </th>
+      <th><p>Сто<em>лбе</em>ц 3</p></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <p>Дли<strong>нная за</strong>пись в первом столбце</p>
+      </td>
+      <td>Запись в столбце 2</td>
+      <td>Запись в столбце 3</td>
+    </tr>
+    <tr>
+      <td>Кртк зпс</td>
+      <td></td>
+      <td>Слева нет записи</td>
+    </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Столбец 1</th>
+      <th style="text-align: center">Столбец 2</th>
+      <th style="text-align: right">Столбец 3</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Равнение по левому краю</td>
+      <td>Равнение по центру</td>
+      <td>Равнение по правому краю</td>
+    </tr>
+    <tr>
+      <td>Запись</td>
+      <td>Запись</td>
+      <td>Запись</td>
+    </tr>
+  </tbody>
+</table>
 <p>
   [![An old rock in the desert](./image.png &amp;quot;Shiprock, New Mexico by
   Beau
