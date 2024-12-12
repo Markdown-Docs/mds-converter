@@ -22,26 +22,29 @@ data ListContext = ListContext
 data ListType = Ordered | Unordered deriving (Show, Eq)
 
 isTableLine :: Text -> Bool
-isTableLine line = 
+isTableLine line =
   let trimmed = T.strip line
-   in T.isPrefixOf (T.pack "|") trimmed && 
-      T.isSuffixOf (T.pack "|") trimmed && 
-      T.count (T.pack "|") trimmed > 1
+   in T.isPrefixOf (T.pack "|") trimmed
+        && T.isSuffixOf (T.pack "|") trimmed
+        && T.count (T.pack "|") trimmed > 1
 
 identifyTable :: [Text] -> Maybe ([Text], [Text])
-identifyTable lines@(_:_:_) = 
+identifyTable lines@(_ : _ : _) =
   let (potentialTableLines, rest) = span isTableLine lines
-   in if length potentialTableLines >= 3 && 
-         isTableHeaderSeparator (potentialTableLines !! 1)
-        then Just (take 3 potentialTableLines ++ 
-                   takeWhile isTableLine (drop 3 potentialTableLines), 
-                   rest)
+   in if length potentialTableLines >= 3
+        && isTableHeaderSeparator (potentialTableLines !! 1)
+        then
+          Just
+            ( take 3 potentialTableLines
+                ++ takeWhile isTableLine (drop 3 potentialTableLines),
+              rest
+            )
         else Nothing
   where
     isTableHeaderSeparator line =
       let trimmed = T.strip line
-       in T.all (\c -> c `elem` ['-', ':', '|']) trimmed &&
-          T.count (T.pack "|") trimmed > 1
+       in T.all (\c -> c `elem` ['-', ':', '|']) trimmed
+            && T.count (T.pack "|") trimmed > 1
 
 parseTableAlignmentLine :: Text -> [TableAlignment]
 parseTableAlignmentLine line =
@@ -74,34 +77,35 @@ parseTable lines =
   let headerLine = head lines
       alignmentLine = lines !! 1
       dataLines = drop 2 lines
-      
-      headers = map parseInlineCellContent 
-                $ filter (not . T.null) 
-                $ tail 
-                $ init 
-                $ T.splitOn (T.pack "|") (T.strip headerLine)
+
+      headers =
+        map parseInlineCellContent $
+          filter (not . T.null) $
+            tail $
+              init $
+                T.splitOn (T.pack "|") (T.strip headerLine)
       alignments = parseTableAlignmentLine alignmentLine
-      
+
       rows = map parseTableRow $ take (length dataLines) $ dropWhile (not . isTableLine) dataLines
-      
+
       remainingLines = drop (length rows + 2) lines
    in (Table headers alignments rows, remainingLines)
   where
     parseTableRow line =
-      map parseInlineCellContent 
-      $ filter (not . T.null) 
-      $ tail 
-      $ init 
-      $ T.splitOn (T.pack "|") (T.strip line)
-    
+      map parseInlineCellContent $
+        filter (not . T.null) $
+          tail $
+            init $
+              T.splitOn (T.pack "|") (T.strip line)
+
     parseInlineCellContent cell =
       let trimmedCell = T.strip cell
-       in if T.null trimmedCell 
-            then PlainText T.empty 
+       in if T.null trimmedCell
+            then PlainText T.empty
             else case parseInline trimmedCell of
-                   [] -> PlainText T.empty
-                   [x] -> x  -- If only one element, return it directly
-                   xs -> Paragraph xs  -- If multiple elements, wrap in Paragraph
+              [] -> PlainText T.empty
+              [x] -> x -- If only one element, return it directly
+              xs -> Paragraph xs -- If multiple elements, wrap in Paragraph
 
 parseMarkdown :: [Text] -> [MDElement]
 parseMarkdown = parseLines [] . skipEmptyLines
