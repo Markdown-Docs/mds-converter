@@ -132,7 +132,6 @@ processInlineContent text =
     [single] -> single
     multiple -> Paragraph multiple
 
-
 -- Parse nested lists with different markers
 parseNestedLists :: [Text] -> [MDElement]
 parseNestedLists items =
@@ -249,7 +248,7 @@ processBlock lines =
     addSpaceBetweenLines :: [Text] -> [Text]
     addSpaceBetweenLines [] = []
     addSpaceBetweenLines [x] = [x]
-    addSpaceBetweenLines (x:xs) = x : map (T.append (T.singleton ' ')) xs
+    addSpaceBetweenLines (x : xs) = x : map (T.append (T.singleton ' ')) xs
 
 processLineForParagraph :: Text -> [MDElement]
 processLineForParagraph line = case processLine line of
