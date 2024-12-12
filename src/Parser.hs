@@ -291,10 +291,12 @@ parseCheckbox :: Text -> [MDElement]
 parseCheckbox text
   | T.isPrefixOf (T.pack "[x]") text || T.isPrefixOf (T.pack "[X]") text =
       let content = T.strip $ T.drop 3 text
-       in [Checkbox True content]
+          parsedContent = parseInline content
+       in [Checkbox True parsedContent]
   | T.isPrefixOf (T.pack "[ ]") text =
       let content = T.strip $ T.drop 3 text
-       in [Checkbox False content]
+          parsedContent = parseInline content
+       in [Checkbox True parsedContent]
   | otherwise = parsePlainText text
 
 -- Handle decorations like *, **, *** or _, __, ___

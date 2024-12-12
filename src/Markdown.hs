@@ -44,7 +44,7 @@ renderElement element = case element of
         if checked then T.pack "checked=\"\" " else T.pack "",
         T.pack "type=\"checkbox\" />",
         T.pack " ",
-        escapeHtml content
+        T.concat (map renderListItem content)
       ]
 
 renderListItem :: MDElement -> Text

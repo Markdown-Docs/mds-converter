@@ -23,5 +23,5 @@ data MDElement
   | ListItem MDElement [MDElement] -- New type to support nested lists
   | CodeBlock Text
   | InlineCode Text
-  | Checkbox Bool Text
+  | Checkbox Bool [MDElement]
   deriving (Show, Eq)
