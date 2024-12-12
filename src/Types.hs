@@ -1,9 +1,17 @@
 module Types
   ( MDElement (..),
+    TableAlignment (..),
   )
 where
 
 import Data.Text (Text)
+
+data TableAlignment
+  = AlignLeft
+  | AlignCenter
+  | AlignRight
+  | AlignDefault
+  deriving (Show, Eq)
 
 data MDElement
   = Paragraph [MDElement]
@@ -24,4 +32,9 @@ data MDElement
   | CodeBlock Text
   | InlineCode Text
   | Checkbox Bool [MDElement]
+  | Table
+      { headers :: [MDElement],
+        alignments :: [TableAlignment],
+        rows :: [[MDElement]]
+      }
   deriving (Show, Eq)

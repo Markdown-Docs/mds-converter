@@ -46,6 +46,19 @@ renderElement element = case element of
         T.pack " ",
         T.concat (map renderListItem content)
       ]
+  Table headers alignments rows ->
+    T.concat
+      [ T.pack "<table>\n",
+        T.pack "  <thead>\n",
+        T.pack "    <tr>\n",
+        T.concat (zipWith renderTableHeader headers alignments),
+        T.pack "    </tr>\n",
+        T.pack "  </thead>\n",
+        T.pack "  <tbody>\n",
+        T.concat (map renderTableRow rows),
+        T.pack "  </tbody>\n",
+        T.pack "</table>\n"
+      ]
 
 renderListItem :: MDElement -> Text
 renderListItem = renderElement
@@ -59,3 +72,34 @@ escapeHtml =
     . T.replace (T.pack "<") (T.pack "&lt;")
     . T.replace (T.pack ">") (T.pack "&gt;")
     . T.replace (T.pack "\"") (T.pack "&quot;")
+
+renderTableHeader :: MDElement -> TableAlignment -> Text
+renderTableHeader header alignment =
+  let alignStyle = case alignment of
+        AlignLeft -> " style=\"text-align: left\""
+        AlignCenter -> " style=\"text-align: center\""
+        AlignRight -> " style=\"text-align: right\""
+        AlignDefault -> ""
+   in T.concat
+        [ T.pack "      <th",
+          T.pack alignStyle,
+          T.pack ">",
+          renderElement header,
+          T.pack "</th>\n"
+        ]
+
+renderTableRow :: [MDElement] -> Text
+renderTableRow cells =
+  T.concat
+    [ T.pack "    <tr>\n",
+      T.concat (map renderTableCell cells),
+      T.pack "    </tr>\n"
+    ]
+
+renderTableCell :: MDElement -> Text
+renderTableCell cell =
+  T.concat
+    [ T.pack "      <td>",
+      renderElement cell,
+      T.pack "</td>\n"
+    ]

@@ -1,4 +1,4 @@
-module Parser (parseMarkdown) where
+module Parser (parseMarkdown, isTableLine) where
 
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
@@ -7,22 +7,8 @@ import Data.Text (Text, break)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Types
-  ( MDElement
-      ( Bold,
-        BoldItalic,
-        Checkbox,
-        Header,
-        HorizontalRule,
-        Italic,
-        LineBreak,
-        ListItem,
-        OrderedList,
-        Paragraph,
-        PlainText,
-        Strikethrough,
-        Underlined,
-        UnorderedList
-      ),
+  ( MDElement (..),
+    TableAlignment (..),
   )
 
 data ListContext = ListContext
@@ -35,12 +21,100 @@ data ListContext = ListContext
 
 data ListType = Ordered | Unordered deriving (Show, Eq)
 
+isTableLine :: Text -> Bool
+isTableLine line = 
+  let trimmed = T.strip line
+   in T.isPrefixOf (T.pack "|") trimmed && 
+      T.isSuffixOf (T.pack "|") trimmed && 
+      T.count (T.pack "|") trimmed > 1
+
+identifyTable :: [Text] -> Maybe ([Text], [Text])
+identifyTable lines@(_:_:_) = 
+  let (potentialTableLines, rest) = span isTableLine lines
+   in if length potentialTableLines >= 3 && 
+         isTableHeaderSeparator (potentialTableLines !! 1)
+        then Just (take 3 potentialTableLines ++ 
+                   takeWhile isTableLine (drop 3 potentialTableLines), 
+                   rest)
+        else Nothing
+  where
+    isTableHeaderSeparator line =
+      let trimmed = T.strip line
+       in T.all (\c -> c `elem` ['-', ':', '|']) trimmed &&
+          T.count (T.pack "|") trimmed > 1
+
+parseTableAlignmentLine :: Text -> [TableAlignment]
+parseTableAlignmentLine line =
+  let cells = T.splitOn (T.pack "|") line
+      cleanCells = filter (not . T.null) $ map T.strip cells
+   in map parseAlignment cleanCells
+  where
+    parseAlignment cell
+      | T.isPrefixOf (T.pack ":-:") cell = AlignCenter
+      | T.isSuffixOf (T.pack "-:") cell = AlignRight
+      | T.isPrefixOf (T.pack ":-") cell = AlignLeft
+      | otherwise = AlignDefault
+
+extractTableRows :: [Text] -> Maybe ([Text], [Text])
+extractTableRows lines@(_ : _ : _) =
+  let headerLine = head lines
+      alignmentLine = lines !! 1
+      dataLines = drop 2 lines
+      isValidTable =
+        isTableLine headerLine
+          && isTableLine alignmentLine
+          && all isTableLine (take (length dataLines) dataLines)
+   in if isValidTable
+        then Just (lines, [])
+        else Nothing
+extractTableRows _ = Nothing
+
+parseTable :: [Text] -> (MDElement, [Text])
+parseTable lines =
+  let headerLine = head lines
+      alignmentLine = lines !! 1
+      dataLines = drop 2 lines
+      
+      headers = map parseInlineCellContent 
+                $ filter (not . T.null) 
+                $ tail 
+                $ init 
+                $ T.splitOn (T.pack "|") (T.strip headerLine)
+      alignments = parseTableAlignmentLine alignmentLine
+      
+      rows = map parseTableRow $ take (length dataLines) $ dropWhile (not . isTableLine) dataLines
+      
+      remainingLines = drop (length rows + 2) lines
+   in (Table headers alignments rows, remainingLines)
+  where
+    parseTableRow line =
+      map parseInlineCellContent 
+      $ filter (not . T.null) 
+      $ tail 
+      $ init 
+      $ T.splitOn (T.pack "|") (T.strip line)
+    
+    parseInlineCellContent cell =
+      let trimmedCell = T.strip cell
+       in if T.null trimmedCell 
+            then PlainText T.empty 
+            else case parseInline trimmedCell of
+                   [] -> PlainText T.empty
+                   [x] -> x  -- If only one element, return it directly
+                   xs -> Paragraph xs  -- If multiple elements, wrap in Paragraph
+
 parseMarkdown :: [Text] -> [MDElement]
 parseMarkdown = parseLines [] . skipEmptyLines
 
 parseLines :: [Text] -> [Text] -> [MDElement]
 parseLines acc [] = processBlock (reverse acc)
 parseLines acc (line : lines)
+  | isTableLine line =
+      case identifyTable (line : lines) of
+        Just (tableLines, rest) ->
+          let (parsedTable, _) = parseTable tableLines
+           in processBlock (reverse acc) ++ [parsedTable] ++ parseLines [] rest
+        Nothing -> parseLines (line : acc) lines
   | T.null line = processBlock (reverse acc) ++ parseLines [] (skipEmptyLines lines)
   | isListLine line =
       let (listItems, rest) = extractListItems (line : lines)
