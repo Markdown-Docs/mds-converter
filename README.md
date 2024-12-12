@@ -7,12 +7,12 @@ Converter for our own `.mds` format file
 - Headings (from `#` to `######`)
 - Text decorations (*italics*, **bold** ***and*** so ~~no~~ <u>on</u>)
 - Horizontal dividers
-- Quotes
 - Lists of any type
 - Checkboxes
 - Links and hyperlinks
 - Code blocks (without syntax highlighting)
 - Tables
+- Images
 
 ## How to run
 
@@ -42,6 +42,6 @@ If you dont have stack installed or GHC configured, use [build](./build.sh) and 
 
 You can see an examples in [this directory](./test/)
 
-For the comparing i used `Markdown All in One` VS code extension to render the same file, it renders it with not bad styles, that are provided [here](./test/styles.html)
+For the comparing i used `Markdown All in One` VS Code extension to render the same file, it renders it with not bad styles, that are provided [here](./test/styles.html)
 
-You can combine file with styles and [output file](./test/output.html) to see some beauteful render.
+You can combine file with styles and [output file](./test/output.html) to see some beauteful example render.
