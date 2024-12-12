@@ -24,7 +24,11 @@ data MDElement
   | Underlined Text
   | LineBreak
   | HorizontalRule
-  | Link Text Text
+  | Link
+      { linkText :: Text,
+        linkUrl :: Text,
+        linkTitle :: Maybe Text -- Optional title attribute
+      }
   | Image Text Text Text
   | UnorderedList [MDElement]
   | OrderedList [MDElement]

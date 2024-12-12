@@ -13,6 +13,19 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 
 renderElement :: MDElement -> Text
 renderElement element = case element of
+  Link text url title ->
+    let titleAttr = case title of
+          Just t -> T.concat [T.pack " title=\"", escapeHtml t, T.pack "\""]
+          Nothing -> T.pack ""
+     in T.concat
+          [ T.pack "<a href=\"",
+            escapeHtml url,
+            T.pack "\"",
+            titleAttr,
+            T.pack ">",
+            escapeHtml text,
+            T.pack "</a>"
+          ]
   Paragraph elements -> T.concat [T.pack "<p>", T.concat (map renderElement elements), T.pack "</p>\n"]
   LineBreak -> T.pack "<br />\n"
   Header level text id ->
@@ -24,7 +37,6 @@ renderElement element = case element of
   Strikethrough text -> T.concat [T.pack "<s>", escapeHtml text, T.pack "</s>"]
   Underlined text -> T.concat [T.pack "<u>", escapeHtml text, T.pack "</u>"]
   HorizontalRule -> T.pack "<hr />\n"
-  Link text url -> T.concat [T.pack "<a href=\"", url, T.pack "\">", escapeHtml text, T.pack "</a>"]
   Image alt url title -> T.concat [T.pack "<img src=\"", url, T.pack "\" alt=\"", alt, T.pack "\"", titleAttr title, T.pack " />"]
   -- Updated list rendering to support nested lists and different markers
   UnorderedList items -> T.concat [T.pack "<ul>\n", T.concat (map renderListItem items), T.pack "</ul>\n"]
