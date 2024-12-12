@@ -78,7 +78,7 @@ renderElement element = case element of
         T.pack "    </tr>\n",
         T.pack "  </thead>\n",
         T.pack "  <tbody>\n",
-        T.concat (map renderTableRow rows),
+        T.concat (map (renderTableRow alignments) rows),
         T.pack "  </tbody>\n",
         T.pack "</table>\n"
       ]
@@ -110,18 +110,25 @@ renderTableHeader header alignment =
           T.pack "</th>\n"
         ]
 
-renderTableRow :: [MDElement] -> Text
-renderTableRow cells =
+renderTableRow :: [TableAlignment] -> [MDElement] -> Text
+renderTableRow alignments cells =
   T.concat
     [ T.pack "    <tr>\n",
-      T.concat (map renderTableCell cells),
+      T.concat (zipWith renderTableCell alignments cells),
       T.pack "    </tr>\n"
     ]
 
-renderTableCell :: MDElement -> Text
-renderTableCell cell =
-  T.concat
-    [ T.pack "      <td>",
-      renderElement cell,
-      T.pack "</td>\n"
-    ]
+renderTableCell :: TableAlignment -> MDElement -> Text
+renderTableCell alignment cell =
+  let alignStyle = case alignment of
+        AlignLeft -> " style=\"text-align: left\""
+        AlignCenter -> " style=\"text-align: center\""
+        AlignRight -> " style=\"text-align: right\""
+        AlignDefault -> ""
+   in T.concat
+        [ T.pack "      <td",
+          T.pack alignStyle,
+          T.pack ">",
+          renderElement cell,
+          T.pack "</td>\n"
+        ]
