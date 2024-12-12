@@ -14,9 +14,10 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 renderElement :: MDElement -> Text
 renderElement element = case element of
   Image alt url title ->
-    let titleAttr = if T.null title 
-          then T.pack "" 
-          else T.concat [T.pack " title=\"", escapeHtml title, T.pack "\""]
+    let titleAttr =
+          if T.null title
+            then T.pack ""
+            else T.concat [T.pack " title=\"", escapeHtml title, T.pack "\""]
      in T.concat
           [ T.pack "<img src=\"",
             escapeHtml url,

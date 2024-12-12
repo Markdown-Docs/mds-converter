@@ -1,12 +1,11 @@
 module Parser (parseMarkdown, isTableLine) where
 
-import Data.Maybe (fromMaybe)
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (groupBy)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text, break)
 import qualified Data.Text as T
-
 import Data.Text.Encoding (encodeUtf8)
 import Types
   ( MDElement (..),
@@ -457,7 +456,7 @@ parseImage text
   | T.isPrefixOf (T.pack "[") text =
       let (altText, afterAltText) = parseLinkText text
           (url, title, remaining) = parseLinkUrlAndTitle afterAltText
-      in Image altText url (fromMaybe T.empty title) : parseInline remaining
+       in Image altText url (fromMaybe T.empty title) : parseInline remaining
   | otherwise = [PlainText $ T.cons '!' text]
   where
     parseLinkText :: Text -> (Text, Text)
