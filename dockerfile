@@ -18,4 +18,4 @@ RUN make build
 
 EXPOSE 3000
 
-CMD ["./runnable/parser", "-c"]
+ENTRYPOINT ["make"]

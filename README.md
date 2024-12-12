@@ -33,7 +33,7 @@ and run:
 or if you want to use this parser in stream mode, use:
 
 ```shell
-./runnable/parser -s
+./runnable/parser -c
 ```
 
 If you dont have stack installed or GHC configured, use [build](./build.sh) and [run](./run.sh) scripts
