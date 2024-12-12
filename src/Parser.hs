@@ -518,7 +518,7 @@ parseHtmlTags text
 -- Handle plain text until a special character
 parsePlainText :: Text -> [MDElement]
 parsePlainText text =
-  let (content, rest) = T.break (`elem` ['*', '_', '~', '<']) text
+  let (content, rest) = T.break (`elem` ['*', '_', '~', '<', '!', '[', '`']) text
    in PlainText content : parseInline rest
 
 isCodeBlockStart :: Text -> Bool
@@ -535,11 +535,11 @@ parseCodeBlock _ = (CodeBlock T.empty, [])
 
 parseInlineCode :: Text -> [MDElement]
 parseInlineCode text
-  | T.isPrefixOf (T.pack "``") text =
-      let (content, rest) = T.breakOn (T.pack "``") (T.drop 2 text)
-       in if T.isPrefixOf (T.pack "``") rest
-            then InlineCode (T.strip content) : parseInline (T.drop 2 rest)
-            else PlainText (T.pack "``") : parseInline (T.drop 2 text)
+  | T.isPrefixOf (T.pack "```") text =
+      let (content, rest) = T.breakOn (T.pack "```") (T.drop 3 text)
+       in if T.isPrefixOf (T.pack "```") rest
+            then InlineCode (T.strip content) : parseInline (T.drop 3 rest)
+            else PlainText (T.pack "```") : parseInline (T.drop 2 text)
   | T.isPrefixOf (T.pack "`") text =
       let (content, rest) = T.breakOn (T.pack "`") (T.drop 1 text)
        in if T.isPrefixOf (T.pack "`") rest
