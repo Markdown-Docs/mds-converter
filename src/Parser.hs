@@ -217,18 +217,21 @@ parseHeader line =
       text = T.strip $ T.dropWhile (== '#') line
       cleanText = T.strip $ T.takeWhile (/= '#') text
       headerId = makeHeaderId cleanText
-   in Header level cleanText headerId
+      mdElementsText = parseInline cleanText
+   in Header level mdElementsText headerId
 
 parseUnderlineHeader :: [Text] -> Maybe (MDElement, [Text])
 parseUnderlineHeader (line1 : line2 : rest)
   | not (T.null line1) && not (T.null line2) && T.all (== '=') (T.strip line2) =
       let cleanText = T.strip line1
           headerId = makeHeaderId cleanText
-       in Just (Header 1 cleanText headerId, rest)
+          mdElementsText = parseInline cleanText
+       in Just (Header 1 mdElementsText headerId, rest)
   | not (T.null line1) && not (T.null line2) && T.all (== '-') (T.strip line2) =
       let cleanText = T.strip line1
           headerId = makeHeaderId cleanText
-       in Just (Header 2 cleanText headerId, rest)
+          mdElementsText = parseInline cleanText
+       in Just (Header 2 mdElementsText headerId, rest)
   | otherwise = Nothing
 parseUnderlineHeader _ = Nothing
 

@@ -17,7 +17,7 @@ renderElement element = case element of
   LineBreak -> T.pack "<br />\n"
   Header level text id ->
     T.concat
-      [T.pack "<h", T.pack (show level), T.pack " id=\"", id, T.pack "\">", escapeHtml text, T.pack "</h", T.pack (show level), T.pack ">\n"]
+      [T.pack "<h", T.pack (show level), T.pack " id=\"", id, T.pack "\">", T.concat (map renderListItem text), T.pack "</h", T.pack (show level), T.pack ">\n"]
   Bold text -> T.concat [T.pack "<strong>", escapeHtml text, T.pack "</strong>"]
   Italic text -> T.concat [T.pack "<em>", escapeHtml text, T.pack "</em>"]
   BoldItalic text -> T.concat [T.pack "<strong><em>", escapeHtml text, T.pack "</em></strong>"]

@@ -8,7 +8,7 @@ import Data.Text (Text)
 data MDElement
   = Paragraph [MDElement]
   | PlainText Text
-  | Header Int Text Text
+  | Header Int [MDElement] Text
   | Bold Text
   | Italic Text
   | BoldItalic Text
