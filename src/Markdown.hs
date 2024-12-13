@@ -13,6 +13,52 @@ markdownToHtml input = T.concat $ map renderElement $ Parser.parseMarkdown $ T.l
 
 renderElement :: MDElement -> Text
 renderElement element = case element of
+  LabReport info ->
+    T.concat
+      [ T.pack "<div align=\"center\">\n",
+        T.pack "<h3>",
+        escapeHtml (university info),
+        T.pack "</h3>\n",
+        T.pack "<div style=\"margin-top: 50px;\">\n",
+        T.pack "<h2><b>",
+        escapeHtml (labName info),
+        T.pack "</b></h2>\n",
+        T.pack "</div>\n",
+        T.pack "<h3>по дисциплине\n\"",
+        escapeHtml (discipline info),
+        T.pack "\"\n</h3>\n",
+        T.pack "</div>\n\n",
+        T.pack "<div align=\"right\" style=\"margin-top: 50px;\">\n",
+        T.pack "    <b>Выполнили студенты группы ",
+        escapeHtml (groupName info),
+        T.pack ":</b>\n",
+        T.pack "    <ul style=\"list-style-type: none; padding-left: 0; margin: 0;\">\n",
+        renderStudentsList (students info),
+        T.pack "    </ul>\n",
+        T.pack "    <div style=\"margin-top: 20px;\">\n",
+        T.pack "    <b>Преподаватель:</b>\n",
+        T.pack "    ",
+        escapeHtml (teacher info),
+        T.pack "\n",
+        T.pack "    </div>\n",
+        T.pack "</div>\n\n",
+        T.pack "<div align=\"center\" style=\"margin-top: 200px; text: center\">\n",
+        T.pack "г. ",
+        escapeHtml (city info),
+        T.pack "\n\n",
+        escapeHtml (year info),
+        T.pack " г.\n",
+        T.pack "</div>\n\n",
+        T.pack "<div style=\"page-break-after: always;\"></div>\n"
+      ]
+    where
+      renderStudentsList :: [Text] -> Text
+      renderStudentsList =
+        T.concat
+          . map
+            ( \student ->
+                T.concat [T.pack "        <li>", escapeHtml student, T.pack "</li>\n"]
+            )
   Image alt url title ->
     let titleAttr =
           if T.null title

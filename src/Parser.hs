@@ -1,5 +1,6 @@
 module Parser (parseMarkdown, isTableLine) where
 
+import Control.Monad (guard)
 import Crypto.Hash (Digest, MD5, hash)
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (groupBy)
@@ -8,11 +9,10 @@ import Data.Text (Text, break)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Types
-  ( MDElement (..),
+  ( LabReportInfo (..),
+    MDElement (..),
     TableAlignment (..),
-    LabReportInfo (..),
   )
-import Control.Monad (guard)
 
 data ListContext = ListContext
   { indentLevel :: Int,
@@ -129,7 +129,7 @@ parseLines acc (line : lines)
   | isLabReportLine line =
       case parseLabReport line of
         Just labReport -> processBlock (reverse acc) ++ [labReport] ++ parseLines [] lines
-        Nothing -> parseLines (line:acc) lines
+        Nothing -> parseLines (line : acc) lines
   | isListLine line =
       let (listItems, rest) = extractListItems (line : lines)
           parsedLists = parseNestedLists listItems
@@ -566,13 +566,15 @@ parseLabReport line = do
     Just studentsStr -> Just $ map T.strip $ T.splitOn (T.pack ";") studentsStr
     Nothing -> Nothing
 
-  return $ LabReport LabReportInfo
-    { university = head parts
-    , labName = parts !! 1
-    , discipline = parts !! 2
-    , groupName = parts !! 3
-    , students = students
-    , teacher = parts !! 5
-    , city = parts !! 6
-    , year = parts !! 7
-    }
+  return $
+    LabReport
+      LabReportInfo
+        { university = head parts,
+          labName = parts !! 1,
+          discipline = parts !! 2,
+          groupName = parts !! 3,
+          students = students,
+          teacher = parts !! 5,
+          city = parts !! 6,
+          year = parts !! 7
+        }

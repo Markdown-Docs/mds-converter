@@ -1,22 +1,23 @@
 module Types
   ( MDElement (..),
     TableAlignment (..),
-    LabReportInfo(..),
+    LabReportInfo (..),
   )
 where
 
 import Data.Text (Text)
 
 data LabReportInfo = LabReportInfo
-  { university :: Text
-  , labName :: Text
-  , discipline :: Text
-  , groupName :: Text
-  , students :: [Text]
-  , teacher :: Text
-  , city :: Text
-  , year :: Text
-  } deriving (Show, Eq)
+  { university :: Text,
+    labName :: Text,
+    discipline :: Text,
+    groupName :: Text,
+    students :: [Text],
+    teacher :: Text,
+    city :: Text,
+    year :: Text
+  }
+  deriving (Show, Eq)
 
 data TableAlignment
   = AlignLeft
