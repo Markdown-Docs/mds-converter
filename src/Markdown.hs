@@ -45,7 +45,7 @@ renderElement element = case element of
         T.pack "<div align=\"center\" style=\"margin-top: 200px; text: center\">\n",
         T.pack "г. ",
         escapeHtml (city info),
-        T.pack "\n\n",
+        T.pack "<br/>",
         escapeHtml (year info),
         T.pack " г.\n",
         T.pack "</div>\n\n",
