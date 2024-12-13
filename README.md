@@ -45,3 +45,13 @@ You can see an examples in [this directory](./test/)
 For the comparing i used `Markdown All in One` VS Code extension to render the same file, it renders it with not bad styles, that are provided [here](./test/styles.html)
 
 You can combine file with styles and [output file](./test/output.html) to see some beauteful example render.
+
+## Perfomance tests
+
+Test data (Markdown): ~5000 lines
+
+Output data (HTML): ~10000 lines
+
+Total execution time: 0.0140266s (built-in-code measurements)
+
+Total execution time: 0.0277915s (100 runs written in python)
