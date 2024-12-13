@@ -1,10 +1,22 @@
 module Types
   ( MDElement (..),
     TableAlignment (..),
+    LabReportInfo(..),
   )
 where
 
 import Data.Text (Text)
+
+data LabReportInfo = LabReportInfo
+  { university :: Text
+  , labName :: Text
+  , discipline :: Text
+  , groupName :: Text
+  , students :: [Text]
+  , teacher :: Text
+  , city :: Text
+  , year :: Text
+  } deriving (Show, Eq)
 
 data TableAlignment
   = AlignLeft
@@ -23,6 +35,7 @@ data MDElement
   | Strikethrough Text
   | Underlined Text
   | LineBreak
+  | LabReport LabReportInfo
   | HorizontalRule
   | Link
       { linkText :: Text,
