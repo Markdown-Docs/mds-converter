@@ -16,9 +16,8 @@ main = do
   hSetEncoding stdin utf8
   args <- getArgs
   case args of
-    ["-c"] -> do
-      content <- TIO.getContents
-      let html = T.concat [T.pack "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n", markdownToHtml content, T.pack "\n</body>\n</html>"]
+    ["-c", text] -> do
+      let html = T.concat [T.pack "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n", markdownToHtml (T.pack text), T.pack "\n</body>\n</html>"]
       TIO.putStrLn html
     [input, output] -> do
       sinput <- BS.readFile input -- read raw bytes
